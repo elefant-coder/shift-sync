@@ -1,19 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Noto_Sans_JP } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
-import MobileNav from "@/components/layout/MobileNav";
-import MobileHeader from "@/components/layout/MobileHeader";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "sonner";
 
-const notoSansJP = Noto_Sans_JP({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-noto-sans-jp",
-  weight: ["400", "500", "700"],
+  variable: "--font-inter",
 });
 
 export const metadata: Metadata = {
-  title: "ShiftSync - シフト管理をもっとカンタンに",
-  description: "AIがシフトを自動最適化。希望提出からシフト確認まで、スマホひとつで完結。",
+  title: "ShiftSync",
+  description: "シフト管理をシンプルに",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -28,7 +25,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#6366F1",
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({
@@ -37,17 +34,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ja" className={notoSansJP.variable}>
+    <html lang="ja" className={inter.variable}>
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
-      <body className="font-sans antialiased bg-background min-h-screen pb-20">
-        <MobileHeader />
-        <main className="px-4 py-4">
-          {children}
-        </main>
-        <MobileNav />
-        <Toaster position="top-center" />
+      <body className="font-sans antialiased min-h-screen">
+        {children}
+        <Toaster 
+          position="top-center" 
+          toastOptions={{
+            style: {
+              background: 'white',
+              border: 'none',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+            },
+          }}
+        />
       </body>
     </html>
   );
