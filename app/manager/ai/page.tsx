@@ -1,233 +1,246 @@
 'use client';
 
 import { useState } from 'react';
-import { format, addDays, startOfWeek, addWeeks } from 'date-fns';
-import { ja } from 'date-fns/locale';
-import { Sparkles, ChevronRight, Check, AlertTriangle, Users, Clock, Zap } from 'lucide-react';
+import { 
+  Sparkles, 
+  Play, 
+  Settings2, 
+  CheckCircle2,
+  Clock,
+  Users,
+  TrendingUp,
+  AlertCircle,
+  RefreshCw
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
-type Step = 'select' | 'generating' | 'preview' | 'done';
+interface AIPreference {
+  id: string;
+  label: string;
+  description: string;
+  enabled: boolean;
+}
 
-const mockGenerated = [
-  { date: '2025-02-24', staff: ['田中', '山田'], morning: true, evening: false },
-  { date: '2025-02-25', staff: ['佐藤', '鈴木'], morning: true, evening: true },
-  { date: '2025-02-26', staff: ['高橋', '田中'], morning: false, evening: true },
-  { date: '2025-02-27', staff: ['山田', '佐藤', '鈴木'], morning: true, evening: true },
-  { date: '2025-02-28', staff: ['田中', '高橋'], morning: true, evening: false },
+const defaultPreferences: AIPreference[] = [
+  {
+    id: 'fairness',
+    label: '公平なシフト配分',
+    description: 'スタッフ間で勤務時間を均等に',
+    enabled: true,
+  },
+  {
+    id: 'consecutive',
+    label: '連勤を避ける',
+    description: '5日以上の連続勤務を回避',
+    enabled: true,
+  },
+  {
+    id: 'preferences',
+    label: '希望を優先',
+    description: 'スタッフの希望時間を最大限考慮',
+    enabled: true,
+  },
+  {
+    id: 'experience',
+    label: '経験者を配置',
+    description: 'ベテランと新人のバランスを確保',
+    enabled: false,
+  },
 ];
 
-export default function AIPage() {
-  const [step, setStep] = useState<Step>('select');
+type GenerationStatus = 'idle' | 'generating' | 'complete' | 'error';
+
+export default function ManagerAIPage() {
+  const [preferences, setPreferences] = useState(defaultPreferences);
+  const [status, setStatus] = useState<GenerationStatus>('idle');
   const [progress, setProgress] = useState(0);
-  
-  const nextWeek = startOfWeek(addWeeks(new Date(), 1), { weekStartsOn: 1 });
 
-  const handleGenerate = () => {
-    setStep('generating');
+  const togglePreference = (id: string) => {
+    setPreferences(prev =>
+      prev.map(p => p.id === id ? { ...p, enabled: !p.enabled } : p)
+    );
+  };
+
+  const generateShifts = async () => {
+    setStatus('generating');
     setProgress(0);
-    
-    const interval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setStep('preview');
-          return 100;
-        }
-        return prev + 5;
-      });
-    }, 100);
+
+    // Simulate AI generation
+    for (let i = 0; i <= 100; i += 10) {
+      await new Promise(r => setTimeout(r, 300));
+      setProgress(i);
+    }
+
+    setStatus('complete');
+    toast.success('シフトを自動生成しました！');
   };
 
-  const handleConfirm = () => {
-    setStep('done');
+  const resetGeneration = () => {
+    setStatus('idle');
+    setProgress(0);
   };
-
-  if (step === 'done') {
-    return (
-      <div className="p-6 min-h-screen flex flex-col items-center justify-center">
-        <div className="w-24 h-24 rounded-full bg-green-100 flex items-center justify-center mb-6">
-          <Check className="h-12 w-12 text-green-500" />
-        </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">シフト確定！</h2>
-        <p className="text-gray-400 text-center mb-8">
-          スタッフに通知が送信されました
-        </p>
-        <button
-          onClick={() => setStep('select')}
-          className="px-8 py-3 bg-gray-100 rounded-full text-gray-600 font-medium"
-        >
-          戻る
-        </button>
-      </div>
-    );
-  }
-
-  if (step === 'generating') {
-    return (
-      <div className="p-6 min-h-screen flex flex-col items-center justify-center">
-        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mb-6 animate-pulse">
-          <Sparkles className="h-12 w-12 text-white" />
-        </div>
-        <h2 className="text-xl font-bold text-gray-900 mb-2">AI生成中...</h2>
-        <p className="text-gray-400 text-center mb-8">
-          最適なシフトを計算しています
-        </p>
-        
-        {/* Progress Bar */}
-        <div className="w-full max-w-xs bg-gray-100 rounded-full h-2 mb-4">
-          <div 
-            className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-200"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-        <span className="text-sm text-gray-400">{progress}%</span>
-      </div>
-    );
-  }
-
-  if (step === 'preview') {
-    return (
-      <div className="p-6">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-            <Sparkles className="h-5 w-5 text-white" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">AI生成結果</h2>
-            <p className="text-xs text-gray-400">確認して確定してください</p>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          <div className="bg-white rounded-2xl p-4 text-center">
-            <div className="text-2xl font-bold text-green-500">100%</div>
-            <div className="text-[10px] text-gray-400">必要人員充足</div>
-          </div>
-          <div className="bg-white rounded-2xl p-4 text-center">
-            <div className="text-2xl font-bold text-blue-500">均等</div>
-            <div className="text-[10px] text-gray-400">シフト配分</div>
-          </div>
-          <div className="bg-white rounded-2xl p-4 text-center">
-            <div className="text-2xl font-bold text-purple-500">92%</div>
-            <div className="text-[10px] text-gray-400">希望反映率</div>
-          </div>
-        </div>
-
-        {/* Generated Shifts */}
-        <div className="space-y-3 mb-8">
-          {mockGenerated.map((day) => (
-            <div key={day.date} className="bg-white rounded-2xl p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-bold text-gray-800">
-                  {format(new Date(day.date), 'M/d（E）', { locale: ja })}
-                </span>
-                <span className="text-xs text-green-500 bg-green-50 px-2 py-1 rounded-full">
-                  {day.staff.length}名
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {day.staff.map((name) => (
-                  <span key={name} className="text-sm bg-gray-100 px-3 py-1 rounded-full text-gray-600">
-                    {name}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Actions */}
-        <div className="space-y-3">
-          <button
-            onClick={handleConfirm}
-            className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-2xl font-bold text-lg shadow-lg"
-          >
-            このシフトで確定
-          </button>
-          <button
-            onClick={() => setStep('select')}
-            className="w-full py-4 bg-gray-100 text-gray-600 rounded-2xl font-medium"
-          >
-            やり直す
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900">AI自動作成</h2>
-        <p className="text-gray-400 text-sm mt-1">希望を元に最適なシフトを生成</p>
-      </div>
-
-      {/* Feature Cards */}
-      <div className="space-y-4 mb-8">
-        <div className="bg-white rounded-2xl p-5 flex items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
-            <Users className="h-6 w-6 text-blue-500" />
-          </div>
-          <div>
-            <h3 className="font-bold text-gray-800 mb-1">希望を最大限反映</h3>
-            <p className="text-sm text-gray-400">スタッフの希望を優先しながらシフトを作成</p>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-2xl p-5 flex items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
-            <Check className="h-6 w-6 text-green-500" />
-          </div>
-          <div>
-            <h3 className="font-bold text-gray-800 mb-1">必要人員を確保</h3>
-            <p className="text-sm text-gray-400">時間帯ごとの必要人数を必ず満たす</p>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-2xl p-5 flex items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
-            <Zap className="h-6 w-6 text-purple-500" />
-          </div>
-          <div>
-            <h3 className="font-bold text-gray-800 mb-1">公平な配分</h3>
-            <p className="text-sm text-gray-400">勤務時間が偏らないよう自動調整</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Week Selection */}
-      <div className="bg-white rounded-2xl p-5 mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-sm text-gray-400">対象期間</div>
-            <div className="font-bold text-gray-800">
-              {format(nextWeek, 'M/d', { locale: ja })} - {format(addDays(nextWeek, 6), 'M/d', { locale: ja })}
+    <div className="min-h-screen bg-gray-50">
+      <div className="px-4 pt-12 pb-8">
+        {/* Header */}
+        <header className="mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center">
+              <Sparkles className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">AI自動作成</h1>
+              <p className="text-sm text-gray-400">AIが最適なシフトを提案</p>
             </div>
           </div>
-          <ChevronRight className="h-5 w-5 text-gray-300" />
-        </div>
-      </div>
+        </header>
 
-      {/* Status */}
-      <div className="bg-yellow-50 rounded-2xl p-4 mb-8 flex items-start gap-3">
-        <AlertTriangle className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
-        <div>
-          <div className="font-medium text-yellow-800 text-sm">3名が未提出</div>
-          <div className="text-xs text-yellow-600 mt-0.5">高橋、佐藤、鈴木さんの希望がまだです</div>
-        </div>
-      </div>
+        {/* Status Card */}
+        <div className={cn(
+          'rounded-2xl p-6 mb-6 transition-all',
+          status === 'idle' && 'bg-white shadow-sm',
+          status === 'generating' && 'bg-gradient-to-br from-purple-500 to-pink-500 text-white',
+          status === 'complete' && 'bg-gradient-to-br from-green-500 to-emerald-500 text-white',
+          status === 'error' && 'bg-red-500 text-white'
+        )}>
+          {status === 'idle' && (
+            <div className="text-center py-4">
+              <Sparkles className="h-12 w-12 text-purple-500 mx-auto mb-4" />
+              <h2 className="text-xl font-bold text-gray-800 mb-2">
+                AIシフト作成
+              </h2>
+              <p className="text-gray-400 text-sm">
+                スタッフの希望と店舗の条件から<br />
+                最適なシフトを自動で作成します
+              </p>
+            </div>
+          )}
 
-      {/* Generate Button */}
-      <button
-        onClick={handleGenerate}
-        className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-2xl font-bold text-lg shadow-lg shadow-purple-500/30 flex items-center justify-center gap-2"
-      >
-        <Sparkles className="h-5 w-5" />
-        AIでシフトを生成
-      </button>
+          {status === 'generating' && (
+            <div className="text-center py-4">
+              <RefreshCw className="h-12 w-12 mx-auto mb-4 animate-spin" />
+              <h2 className="text-xl font-bold mb-2">
+                シフトを生成中...
+              </h2>
+              <div className="w-full bg-white/20 rounded-full h-2 mb-2">
+                <div
+                  className="bg-white h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <p className="text-white/80 text-sm">{progress}%</p>
+            </div>
+          )}
+
+          {status === 'complete' && (
+            <div className="text-center py-4">
+              <CheckCircle2 className="h-12 w-12 mx-auto mb-4" />
+              <h2 className="text-xl font-bold mb-2">
+                生成完了！
+              </h2>
+              <p className="text-white/80 text-sm mb-4">
+                来週のシフトが作成されました
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  variant="secondary"
+                  className="flex-1 bg-white/20 hover:bg-white/30 text-white border-0"
+                  onClick={resetGeneration}
+                >
+                  再生成
+                </Button>
+                <Button
+                  className="flex-1 bg-white text-green-600 hover:bg-white/90"
+                >
+                  確認する
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* AI Stats Preview */}
+        {status === 'complete' && (
+          <div className="grid grid-cols-3 gap-3 mb-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
+              <Users className="h-5 w-5 text-blue-500 mx-auto mb-2" />
+              <div className="text-xl font-bold text-gray-800">5</div>
+              <div className="text-[10px] text-gray-400">配置スタッフ</div>
+            </div>
+            <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
+              <Clock className="h-5 w-5 text-green-500 mx-auto mb-2" />
+              <div className="text-xl font-bold text-gray-800">98%</div>
+              <div className="text-[10px] text-gray-400">希望一致率</div>
+            </div>
+            <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
+              <TrendingUp className="h-5 w-5 text-purple-500 mx-auto mb-2" />
+              <div className="text-xl font-bold text-gray-800">100%</div>
+              <div className="text-[10px] text-gray-400">人員充足率</div>
+            </div>
+          </div>
+        )}
+
+        {/* Preferences */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Settings2 className="h-5 w-5 text-gray-400" />
+            <h2 className="font-bold text-gray-800">AI設定</h2>
+          </div>
+
+          <div className="space-y-4">
+            {preferences.map((pref) => (
+              <div
+                key={pref.id}
+                className="flex items-center justify-between"
+              >
+                <div>
+                  <div className="font-medium text-gray-700 text-sm">
+                    {pref.label}
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    {pref.description}
+                  </div>
+                </div>
+                <Switch
+                  checked={pref.enabled}
+                  onCheckedChange={() => togglePreference(pref.id)}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Tips */}
+        <div className="bg-blue-50 rounded-2xl p-4 mb-6">
+          <div className="flex gap-3">
+            <AlertCircle className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <div className="font-medium text-blue-700 text-sm mb-1">
+                AIのヒント
+              </div>
+              <p className="text-xs text-blue-600">
+                スタッフの希望が多いほど、AIの予測精度が上がります。
+                まずはスタッフにシフト希望を入力してもらいましょう。
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Generate Button */}
+        {status === 'idle' && (
+          <Button
+            onClick={generateShifts}
+            className="w-full h-14 text-lg font-bold rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+          >
+            <Play className="h-5 w-5 mr-2" />
+            シフトを自動生成
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

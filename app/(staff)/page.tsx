@@ -1,151 +1,166 @@
 'use client';
 
-import { useState } from 'react';
-import { format, addDays, startOfWeek, isToday, isSameDay } from 'date-fns';
-import { ja } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useState, useEffect } from 'react';
+import { format } from 'date-fns';
+import { Calendar } from '@/components/calendar';
+import { ShiftInputDrawer, ShiftInputData } from '@/components/shift/ShiftInputDrawer';
+import { ShiftDetailSheet } from '@/components/shift/ShiftDetailSheet';
+import { useCalendarStore, Shift, SHIFT_COLORS } from '@/lib/stores/calendar-store';
+import { toast } from 'sonner';
 
-// Demo data
-const mockShifts = [
-  { id: '1', date: '2025-02-18', start: '09:00', end: '14:00', store: '渋谷店' },
-  { id: '2', date: '2025-02-20', start: '18:00', end: '23:00', store: '渋谷店' },
-  { id: '3', date: '2025-02-21', start: '14:00', end: '18:00', store: '渋谷店' },
-  { id: '4', date: '2025-02-22', start: '09:00', end: '18:00', store: '新宿店' },
+// Demo shifts
+const demoShifts: Shift[] = [
+  {
+    id: '1',
+    staffId: 'me',
+    staffName: '私',
+    date: format(new Date(), 'yyyy-MM-dd'),
+    startTime: '09:00',
+    endTime: '14:00',
+    color: SHIFT_COLORS[0],
+    store: '渋谷店',
+    status: 'confirmed',
+  },
+  {
+    id: '2',
+    staffId: 'me',
+    staffName: '私',
+    date: format(new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
+    startTime: '18:00',
+    endTime: '23:00',
+    color: SHIFT_COLORS[0],
+    store: '渋谷店',
+    status: 'confirmed',
+  },
+  {
+    id: '3',
+    staffId: 'me',
+    staffName: '私',
+    date: format(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
+    startTime: '14:00',
+    endTime: '18:00',
+    color: SHIFT_COLORS[0],
+    store: '渋谷店',
+    status: 'pending',
+  },
+  {
+    id: '4',
+    staffId: 'me',
+    staffName: '私',
+    date: format(new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
+    startTime: '09:00',
+    endTime: '18:00',
+    color: SHIFT_COLORS[0],
+    store: '新宿店',
+    status: 'confirmed',
+  },
 ];
 
-export default function HomePage() {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+export default function StaffHomePage() {
+  const { selectedDate, selectedDates, setShifts, addShift, clearSelectedDates } = useCalendarStore();
+  const [showInput, setShowInput] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
+  const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
 
-  const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
-  const todayShift = mockShifts.find(s => s.date === selectedDateStr);
+  // Load demo shifts
+  useEffect(() => {
+    setShifts(demoShifts);
+  }, [setShifts]);
 
-  const prevWeek = () => setCurrentDate(addDays(currentDate, -7));
-  const nextWeek = () => setCurrentDate(addDays(currentDate, 7));
+  const handleDateClick = (date: Date) => {
+    // Open input drawer for new shift request
+    setShowInput(true);
+  };
+
+  const handleTimeClick = (date: Date, hour: number) => {
+    setShowInput(true);
+  };
+
+  const handleShiftClick = (shift: Shift) => {
+    setSelectedShift(shift);
+    setShowDetail(true);
+  };
+
+  const handleShiftSubmit = (data: ShiftInputData) => {
+    // Add new shift request
+    const newShift: Shift = {
+      id: `new-${Date.now()}`,
+      staffId: 'me',
+      staffName: '私',
+      date: format(data.dates[0], 'yyyy-MM-dd'),
+      startTime: data.startTime,
+      endTime: data.endTime,
+      color: SHIFT_COLORS[0],
+      status: 'requested',
+    };
+
+    addShift(newShift);
+    clearSelectedDates();
+    toast.success('シフト希望を送信しました');
+  };
+
+  // Calculate stats
+  const shifts = useCalendarStore(state => state.shifts);
+  const thisWeekShifts = shifts.filter(s => {
+    const shiftDate = new Date(s.date);
+    const now = new Date();
+    const weekStart = new Date(now.setDate(now.getDate() - now.getDay()));
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+    return shiftDate >= weekStart && shiftDate < weekEnd;
+  });
+
+  const totalHours = thisWeekShifts.reduce((acc, s) => {
+    const start = parseInt(s.startTime.split(':')[0]);
+    const end = parseInt(s.endTime.split(':')[0]);
+    return acc + (end - start);
+  }, 0);
 
   return (
-    <div className="px-6 pt-12 pb-8">
-      {/* Header - Clean & Minimal */}
-      <header className="mb-10">
-        <h1 className="text-3xl font-bold text-gray-900">
-          シフト
-        </h1>
-        <p className="text-gray-400 mt-1">
-          {format(currentDate, 'yyyy年M月', { locale: ja })}
-        </p>
-      </header>
+    <div className="min-h-screen bg-gray-50">
+      <div className="px-4 pt-12 pb-24">
+        {/* Header */}
+        <header className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-900">マイシフト</h1>
+          <p className="text-gray-400 mt-1">タップして希望を入力</p>
+        </header>
 
-      {/* Week Navigation */}
-      <div className="flex items-center justify-between mb-6">
-        <button 
-          onClick={prevWeek}
-          className="p-2 rounded-full hover:bg-gray-50 transition-colors touch-active"
-        >
-          <ChevronLeft className="h-5 w-5 text-gray-400" />
-        </button>
-        
-        <span className="text-sm font-medium text-gray-500">
-          {format(weekStart, 'M/d', { locale: ja })} - {format(addDays(weekStart, 6), 'M/d', { locale: ja })}
-        </span>
-        
-        <button 
-          onClick={nextWeek}
-          className="p-2 rounded-full hover:bg-gray-50 transition-colors touch-active"
-        >
-          <ChevronRight className="h-5 w-5 text-gray-400" />
-        </button>
-      </div>
-
-      {/* Week Calendar - Super Clean */}
-      <div className="grid grid-cols-7 gap-2 mb-10">
-        {weekDays.map((day) => {
-          const dateStr = format(day, 'yyyy-MM-dd');
-          const hasShift = mockShifts.some(s => s.date === dateStr);
-          const isSelected = isSameDay(day, selectedDate);
-          const isTodayDate = isToday(day);
-          const shift = mockShifts.find(s => s.date === dateStr);
-
-          return (
-            <button
-              key={dateStr}
-              onClick={() => setSelectedDate(day)}
-              className={cn(
-                'flex flex-col items-center py-3 rounded-2xl transition-all touch-active',
-                isSelected 
-                  ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' 
-                  : isTodayDate
-                  ? 'bg-gray-50'
-                  : 'hover:bg-gray-50'
-              )}
-            >
-              <span className={cn(
-                'text-[10px] font-medium mb-1',
-                isSelected ? 'text-blue-100' : 'text-gray-400'
-              )}>
-                {format(day, 'E', { locale: ja })}
-              </span>
-              <span className={cn(
-                'text-lg font-bold',
-                isSelected ? 'text-white' : 'text-gray-800'
-              )}>
-                {format(day, 'd')}
-              </span>
-              {hasShift && (
-                <div className={cn(
-                  'text-[9px] font-medium mt-1 px-1.5 py-0.5 rounded-full',
-                  isSelected 
-                    ? 'bg-white/20 text-white' 
-                    : 'bg-blue-50 text-blue-500'
-                )}>
-                  {shift?.start.slice(0, 2)}時〜
-                </div>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Selected Day Detail */}
-      <div className="mb-8">
-        <h2 className="text-lg font-bold text-gray-800 mb-4">
-          {format(selectedDate, 'M月d日（E）', { locale: ja })}
-        </h2>
-        
-        {todayShift ? (
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-3xl p-6 text-white shadow-xl shadow-blue-500/20">
-            <div className="flex items-baseline gap-1 mb-4">
-              <span className="text-4xl font-bold">{todayShift.start}</span>
-              <span className="text-xl text-blue-200 mx-2">→</span>
-              <span className="text-4xl font-bold">{todayShift.end}</span>
-            </div>
-            <div className="flex items-center text-blue-100">
-              <MapPin className="h-4 w-4 mr-1" />
-              <span className="text-sm">{todayShift.store}</span>
-            </div>
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="bg-white rounded-2xl p-4 shadow-sm">
+            <div className="text-2xl font-bold text-blue-500">{thisWeekShifts.length}</div>
+            <div className="text-xs text-gray-400">今週のシフト</div>
           </div>
-        ) : (
-          <div className="bg-gray-50 rounded-3xl p-10 text-center">
-            <div className="text-5xl mb-4">🏖️</div>
-            <p className="text-gray-400 font-medium">お休み</p>
+          <div className="bg-white rounded-2xl p-4 shadow-sm">
+            <div className="text-2xl font-bold text-green-500">{totalHours}h</div>
+            <div className="text-xs text-gray-400">勤務時間</div>
           </div>
-        )}
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-gray-50 rounded-2xl p-5 text-center">
-          <div className="text-3xl font-bold text-gray-800">4</div>
-          <div className="text-xs text-gray-400 mt-1">今週のシフト</div>
         </div>
-        <div className="bg-gray-50 rounded-2xl p-5 text-center">
-          <div className="text-3xl font-bold text-gray-800">24h</div>
-          <div className="text-xs text-gray-400 mt-1">勤務時間</div>
+
+        {/* Calendar */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <Calendar
+            onDateClick={handleDateClick}
+            onTimeClick={handleTimeClick}
+            onShiftClick={handleShiftClick}
+          />
         </div>
       </div>
+
+      {/* Shift Input Drawer */}
+      <ShiftInputDrawer
+        open={showInput}
+        onOpenChange={setShowInput}
+        selectedDates={selectedDates.length > 0 ? selectedDates : selectedDate ? [selectedDate] : [new Date()]}
+        onSubmit={handleShiftSubmit}
+      />
+
+      {/* Shift Detail Sheet */}
+      <ShiftDetailSheet
+        open={showDetail}
+        onOpenChange={setShowDetail}
+        shift={selectedShift}
+      />
     </div>
   );
 }
